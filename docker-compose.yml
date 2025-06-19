@@ -1,0 +1,206 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database with TimescaleDB extension
+  postgres:
+    image: timescale/timescaledb-ha:pg15-latest
+    container_name: hvac_postgres
+    environment:
+      POSTGRES_DB: hvac_diagnostic
+      POSTGRES_USER: hvac_user
+      POSTGRES_PASSWORD: hvac_password
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - hvac_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hvac_user -d hvac_diagnostic"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    container_name: hvac_redis
+    command: redis-server --appendonly yes --requirepass hvac_redis_password
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - hvac_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: deployment/docker/Dockerfile.backend
+    container_name: hvac_backend
+    environment:
+      - DATABASE_URL=postgresql://hvac_user:hvac_password@postgres:5432/hvac_diagnostic
+      - REDIS_URL=redis://:hvac_redis_password@redis:6379/0
+      - SECRET_KEY=your-secret-key-here-change-in-production
+      - DEBUG=true
+      - ENVIRONMENT=development
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src/backend:/app/src/backend
+      - ./src/ai:/app/src/ai
+      - ./src/shared:/app/src/shared
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hvac_network
+    command: uvicorn src.backend.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend React App
+  frontend:
+    build:
+      context: .
+      dockerfile: deployment/docker/Dockerfile.frontend
+    container_name: hvac_frontend
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - VITE_APP_NAME=HVAC AI Diagnostic
+      - VITE_ENVIRONMENT=development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./src/frontend:/app
+      - /app/node_modules
+    networks:
+      - hvac_network
+    command: npm run dev -- --host 0.0.0.0 --port 3000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Celery Worker for background tasks
+  celery-worker:
+    build:
+      context: .
+      dockerfile: deployment/docker/Dockerfile.backend
+    container_name: hvac_celery_worker
+    environment:
+      - DATABASE_URL=postgresql://hvac_user:hvac_password@postgres:5432/hvac_diagnostic
+      - REDIS_URL=redis://:hvac_redis_password@redis:6379/0
+      - SECRET_KEY=your-secret-key-here-change-in-production
+      - ENVIRONMENT=development
+    volumes:
+      - ./src/backend:/app/src/backend
+      - ./src/ai:/app/src/ai
+      - ./src/shared:/app/src/shared
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hvac_network
+    command: celery -A src.backend.celery_app worker --loglevel=info
+
+  # Celery Beat for scheduled tasks
+  celery-beat:
+    build:
+      context: .
+      dockerfile: deployment/docker/Dockerfile.backend
+    container_name: hvac_celery_beat
+    environment:
+      - DATABASE_URL=postgresql://hvac_user:hvac_password@postgres:5432/hvac_diagnostic
+      - REDIS_URL=redis://:hvac_redis_password@redis:6379/0
+      - SECRET_KEY=your-secret-key-here-change-in-production
+      - ENVIRONMENT=development
+    volumes:
+      - ./src/backend:/app/src/backend
+      - ./src/ai:/app/src/ai
+      - ./src/shared:/app/src/shared
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hvac_network
+    command: celery -A src.backend.celery_app beat --loglevel=info
+
+  # Jupyter Notebook for ML development
+  jupyter:
+    image: jupyter/tensorflow-notebook:latest
+    container_name: hvac_jupyter
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - JUPYTER_TOKEN=hvac_notebook_token
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./data:/home/jovyan/data
+      - ./src/ai:/home/jovyan/ai
+      - ./notebooks:/home/jovyan/notebooks
+    networks:
+      - hvac_network
+
+  # pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: hvac_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@hvac-diagnostic.com
+      PGADMIN_DEFAULT_PASSWORD: admin_password
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - hvac_network
+
+  # Redis Commander for Redis management
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: hvac_redis_commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0:hvac_redis_password
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - hvac_network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  hvac_network:
+    driver: bridge

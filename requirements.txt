@@ -1,0 +1,117 @@
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.1
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy==2.0.23
+alembic==1.13.1
+psycopg2-binary==2.9.9
+redis==5.0.1
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+
+# Task Queue
+celery==5.3.4
+
+# Machine Learning & AI
+scikit-learn==1.3.2
+tensorflow==2.15.0
+pandas==2.1.4
+numpy==1.24.4
+matplotlib==3.8.2
+seaborn==0.13.0
+joblib==1.3.2
+
+# Natural Language Processing
+transformers==4.36.2
+torch==2.1.2
+tokenizers==0.15.0
+
+# Data Processing
+pydantic-extra-types==2.3.0
+python-dateutil==2.8.2
+openpyxl==3.1.2
+
+# HTTP Client
+httpx==0.25.2
+aiohttp==3.9.1
+
+# Configuration
+python-dotenv==1.0.0
+pyyaml==6.0.1
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+httpx==0.25.2
+
+# Code Quality
+black==23.11.0
+isort==5.12.0
+flake8==6.1.0
+mypy==1.7.1
+
+# Documentation
+mkdocs==1.5.3
+mkdocs-material==9.4.10
+
+# Monitoring & Logging
+structlog==23.2.0
+sentry-sdk[fastapi]==1.38.0
+
+# Development
+watchdog==3.0.0
+pre-commit==3.6.0
+
+# Time Series (for HVAC sensor data)
+influxdb-client==1.39.0
+
+# Image Processing (for equipment photos/diagrams)
+pillow==10.1.0
+
+# Excel/CSV Processing
+xlsxwriter==3.1.9
+
+# API Documentation
+python-json-logger==2.0.7
+
+# Environment Variables
+environs==10.0.0
+
+# Cryptography
+cryptography==41.0.8
+
+# Email
+fastapi-mail==1.4.1
+
+# File Storage
+boto3==1.34.0  # for AWS S3
+azure-storage-blob==12.19.0  # for Azure
+
+# Background Tasks
+rq==1.15.1
+
+# Caching
+aiocache[redis]==0.12.2
+
+# Validation
+validators==0.22.0
+
+# Geolocation (for service locations)
+geopy==2.4.0
+
+# PDF Generation (for reports)
+reportlab==4.0.7
+weasyprint==60.2
+
+# QR Code Generation (for equipment tags)
+qrcode[pil]==7.4.2
+
+# UUID Generation
+shortuuid==1.0.11
